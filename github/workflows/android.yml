@@ -1,1 +1,58 @@
 
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Prepare web app
+        run: |
+          mkdir -p www
+          cp src/index.html www/
+          cp node_modules/jspdf/dist/jspdf.umd.min.js www/
+          sed -i 's#https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js#jspdf.umd.min.js#' www/index.html
+
+      - name: Add Android platform
+        run: npx cap add android
+
+      - name: Generate Android assets
+        run: npx capacitor-assets generate --android
+
+      - name: Sync Android
+        run: npx cap sync android
+
+      - name: Build APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SINIKAT-PRODUCTIONS-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
